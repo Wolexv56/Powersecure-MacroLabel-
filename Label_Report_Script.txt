@@ -1,0 +1,668 @@
+
+
+
+'creating the wire format function
+Sub WireFrom2()
+
+'creates the sheet that will hold the wire label information and adds it to the current workbook
+Dim WireFormat As Worksheet
+Set WireFormat = ActiveWorkbook.Worksheets.Add
+
+'creates sheet to reference the wire data and ws is variable to loop through worksheets in the current workbook
+Dim WireSheet As Worksheet
+Dim ws As Worksheet
+Dim Home As Worksheet
+Set Home = Sheets("Home")
+
+'variables
+Dim wirenum As String
+Dim last As Long
+Dim Count As Long
+Dim Count2 As Long
+Dim i As Long
+
+Dim wire_type As String
+Dim from_com As String
+Dim from_pin As String
+Dim to_com As String
+Dim to_pin As String
+Dim fromlo As Variant
+Dim tolo As Variant
+
+
+Dim wiretypecol As Variant
+Dim fromcomCol As Variant
+Dim frompinCol As Variant
+Dim tocomCol As Variant
+Dim topinCol As Variant
+Dim wirenumcol As Variant
+Dim fromlocol As Variant
+Dim tolocol As Variant
+
+
+Dim m1, m2, m3
+
+'finding the right worksheet based off the headers
+For Each ws In ActiveWorkbook.Worksheets
+
+    m1 = Application.Match("WIRENO", ws.Rows(1), 0)
+    m2 = Application.Match("CMP1", ws.Rows(1), 0)
+    m3 = Application.Match("CMP2", ws.Rows(1), 0)
+
+    If Not IsError(m1) And Not IsError(m2) And Not IsError(m3) Then
+        Set WireSheet = ws
+        Exit For
+    End If
+
+Next ws
+
+If WireSheet Is Nothing Then
+    MsgBox "Wire sheet not found", vbCritical
+    Exit Sub
+End If
+
+'renaming the wire data sheet and wire label sheet
+ 'WireSheet.Name = "Wire_data"
+WireFormat.Name = "Wire_Report"
+
+
+wiretypecol = Application.Match("WLAY1", WireSheet.Rows(1), 0)
+fromcomCol = Application.Match("CMP1", WireSheet.Rows(1), 0)
+frompinCol = Application.Match("PIN1", WireSheet.Rows(1), 0)
+tocomCol = Application.Match("CMP2", WireSheet.Rows(1), 0)
+topinCol = Application.Match("PIN2", WireSheet.Rows(1), 0)
+wirenumcol = Application.Match("WIRENO", WireSheet.Rows(1), 0)
+fromlocol = Application.Match("LOC1", WireSheet.Rows(1), 0)
+tolocol = Application.Match("LOC2", WireSheet.Rows(1), 0)
+
+
+
+'gathering information about where cells are
+last = WireSheet.Cells(WireSheet.Rows.Count, wiretypecol).End(xlUp).Row
+
+
+
+
+
+'SORT BY WIRE NUMBER (WIRENO) LOWEST TO HIGHEST
+With WireSheet.Sort
+    .SortFields.Clear
+
+    .SortFields.Add Key:=WireSheet.Range(WireSheet.Cells(2, wirenumcol), _
+                                         WireSheet.Cells(last, wirenumcol)), _
+                    SortOn:=xlSortOnValues, _
+                    Order:=xlAscending, _
+                    DataOption:=xlSortNormal
+
+    .SetRange WireSheet.Range(WireSheet.Cells(1, 1), _
+                              WireSheet.Cells(last, WireSheet.UsedRange.Columns.Count))
+
+    .Header = xlYes
+    .MatchCase = False
+    .Orientation = xlTopToBottom
+    .Apply
+End With
+
+'designing the wire label sheet
+WireFormat.Rows(1).Font.Bold = True
+WireFormat.Cells(1, 1).Value = "Source/WireNo"
+WireFormat.Cells(1, 2).Value = "Destination"
+WireFormat.Cells(1, 3).Value = "Destination/WireNo"
+WireFormat.Cells(1, 4).Value = "Source"
+
+Count = 2
+
+For i = 2 To last
+
+    wire_type = Trim(WireSheet.Cells(i, wiretypecol).Value)
+
+    If wire_type <> "_BUS" And _
+       wire_type <> "_CABLE" And _
+       wire_type <> "FIELD_FIBER" And _
+       wire_type <> "_JUMPER" Then
+
+        wirenum = Trim(WireSheet.Cells(i, wirenumcol).Value)
+        from_com = Trim(WireSheet.Cells(i, fromcomCol).Value)
+        from_pin = Trim(WireSheet.Cells(i, frompinCol).Value)
+        to_com = Trim(WireSheet.Cells(i, tocomCol).Value)
+        to_pin = Trim(WireSheet.Cells(i, topinCol).Value)
+
+        If wirenum <> "" And _
+           from_com <> "" And _
+           to_com <> "" Then
+
+            from_pin = Trim(Replace(Replace(from_pin, ": E", ""), ": I", ""))
+            to_pin = Trim(Replace(Replace(to_pin, ": E", ""), ": I", ""))
+
+            WireFormat.Cells(Count, 1).Value = _
+                from_com & ":" & from_pin & "/" & wirenum
+
+            WireFormat.Cells(Count, 2).Value = _
+                to_com & ":" & to_pin
+
+            WireFormat.Cells(Count, 3).Value = _
+                to_com & ":" & to_pin & "/" & wirenum
+
+            WireFormat.Cells(Count, 4).Value = _
+                from_com & ":" & from_pin
+
+            Count = Count + 1
+
+        End If
+
+    End If
+
+Next i
+
+End Sub
+
+
+
+'creates component format function
+Sub Component_Format()
+
+'crates format/label sheet and adds it to workbook
+Dim ComponentFormat As Worksheet
+Set ComponentFormat = ActiveWorkbook.Worksheets.Add
+
+'creates new sheet to reference component data sheet
+Dim ComponentSheet As Worksheet
+Dim ws As Worksheet
+
+'variables
+Dim Tag As String
+Dim last As Long
+Dim Count As Long
+Dim i As Long
+
+Dim Catcol As Variant
+Dim Tcol As Variant
+Dim D1col As Variant
+Dim D2col As Variant
+Dim D3col As Variant
+
+Dim m1, m2
+
+'finds right sheet in workbook based off headers
+For Each ws In ActiveWorkbook.Worksheets
+    
+    m1 = Application.Match("TAGNAME", ws.Rows(1), 0)
+    m2 = Application.Match("MFG", ws.Rows(1), 0)
+    
+    If Not IsError(m1) And Not IsError(m2) Then
+        Set ComponentSheet = ws
+        Exit For
+    End If
+
+Next ws
+
+If ComponentSheet Is Nothing Then
+    MsgBox "Component sheet not found", vbCritical
+    Exit Sub
+End If
+
+'renames component detials and component label sheets
+' ComponentSheet.Name = "Component_data"
+ComponentFormat.Name = "Component_Report"
+
+
+
+Tcol = Application.Match("TAGNAME", ComponentSheet.Rows(1), 0)
+Des1 = Application.Match("DESC1", ComponentSheet.Rows(1), 0)
+Des2 = Application.Match("DESC2", ComponentSheet.Rows(1), 0)
+Des3 = Application.Match("DESC3", ComponentSheet.Rows(1), 0)
+
+
+'gather column information where they're located to reference later
+last = ComponentSheet.Cells(ComponentSheet.Rows.Count, Tcol).End(xlUp).Row
+
+
+
+'formating label page
+ComponentFormat.Rows(1).Font.Bold = True
+ComponentFormat.Cells(1, 1).Value = "Tag"
+ComponentFormat.Cells(1, 2).Value = "Description 1"
+ComponentFormat.Cells(1, 3).Value = "Description 2"
+ComponentFormat.Cells(1, 4).Value = "Description 3"
+
+Count = 2
+
+
+'loops through data sheet of components and based of if the tags are empty or not the function runs
+For i = 2 To last
+ Tag = ComponentSheet.Cells(i, Tcol).Value
+
+
+If Trim(Tag) <> "" Then
+    Tag = ComponentSheet.Cells(i, Tcol).Value
+
+    ComponentFormat.Cells(Count, 1).Value = ComponentSheet.Cells(i, Tcol)
+    ComponentFormat.Cells(Count, 2).Value = ComponentSheet.Cells(i, Des1)
+    ComponentFormat.Cells(Count, 3).Value = ComponentSheet.Cells(i, Des2)
+    ComponentFormat.Cells(Count, 4).Value = ComponentSheet.Cells(i, Des3)
+    
+    Count = Count + 1
+    
+End If
+Next i
+
+End Sub
+
+'creates the fuse and relay function
+Sub Fuse_Relays_Format()
+
+'creates the format/label sheet and adds it to the workbook
+Dim ComponentFormat As Worksheet
+Set ComponentFormat = ActiveWorkbook.Worksheets.Add
+
+'variable to reference the componenet sheet and ws to loop through sheets in workbook
+Dim ComponentSheet As Worksheet
+Dim ws As Worksheet
+
+'variables
+Dim Tag As String
+Dim last As Long
+Dim Count As Long
+Dim i As Long
+
+Dim Catcol As Variant
+Dim Tcol As Variant
+Dim D1col As Variant
+Dim D2col As Variant
+Dim D3col As Variant
+
+Dim m1, m2
+
+'finds the correct worksheet
+For Each ws In ActiveWorkbook.Worksheets
+    
+    m1 = Application.Match("TAGNAME", ws.Rows(1), 0)
+    m2 = Application.Match("MFG", ws.Rows(1), 0)
+    
+    If Not IsError(m1) And Not IsError(m2) Then
+        Set ComponentSheet = ws
+        Exit For
+    End If
+
+Next ws
+
+
+If ComponentSheet Is Nothing Then
+    MsgBox "Component sheet not found", vbCritical
+    Exit Sub
+End If
+
+'ComponentSheet.Name = "Component_data"
+ComponentFormat.Name = "Fuse_Relays_Report"
+
+
+'finds the columns within the component sheet to then later reference
+
+Tcol = Application.Match("TAGNAME", ComponentSheet.Rows(1), 0)
+Des1 = Application.Match("DESC1", ComponentSheet.Rows(1), 0)
+Des2 = Application.Match("DESC2", ComponentSheet.Rows(1), 0)
+Des3 = Application.Match("DESC3", ComponentSheet.Rows(1), 0)
+
+
+
+
+last = ComponentSheet.Cells(ComponentSheet.Rows.Count, Tcol).End(xlUp).Row
+
+'creates the header for the component format/label sheet
+ComponentFormat.Rows(1).Font.Bold = True
+ComponentFormat.Cells(1, 1).Value = "Tag"
+ComponentFormat.Cells(1, 2).Value = "Description 1"
+ComponentFormat.Cells(1, 3).Value = "Description 2"
+ComponentFormat.Cells(1, 4).Value = "Description 3"
+
+Count = 2
+
+
+'loops through the component sheet and outputs if fuse or control relay
+For i = 2 To last
+ Tag = ComponentSheet.Cells(i, Tcol).Value
+
+If Tag Like "FU*" Or Tag Like "CR*" Then
+
+    ComponentFormat.Cells(Count, 1).Value = ComponentSheet.Cells(i, Tcol)
+    ComponentFormat.Cells(Count, 2).Value = ComponentSheet.Cells(i, Des1)
+    ComponentFormat.Cells(Count, 3).Value = ComponentSheet.Cells(i, Des2)
+    ComponentFormat.Cells(Count, 4).Value = ComponentSheet.Cells(i, Des3)
+    
+    Count = Count + 1
+    
+End If
+Next i
+
+End Sub
+
+'create terminal function
+Sub Terminal_pins()
+
+'create terminal format/label sheet and add it to workbook
+Dim TerminalFormat As Worksheet
+Set TerminalFormat = ActiveWorkbook.Worksheets.Add
+
+'refernce to component data sheet
+Dim ComponentSheet As Worksheet
+Dim ws As Worksheet
+
+'variables
+Dim last As Long
+Dim Count As Long
+Dim i As Long
+Dim Tnum As String
+
+Dim Tcol As Variant
+Dim tnumcol As Variant
+Dim locationcol As Variant
+
+Dim m1, m2, m3
+
+'Loops through each sheet in workbook to find the right one
+For Each ws In ActiveWorkbook.Worksheets
+    
+    m1 = Application.Match("STRIP-ID", ws.Rows(1), 0)
+    m2 = Application.Match("TERM", ws.Rows(1), 0)
+    m3 = Application.Match("LOC", ws.Rows(1), 0)
+    
+    If Not IsError(m1) And Not IsError(m2) And Not IsError(m3) Then
+        Set ComponentSheet = ws
+        Exit For
+    End If
+
+Next ws
+
+If ComponentSheet Is Nothing Then
+    MsgBox "Terminal sheet not found", vbCritical
+    Exit Sub
+End If
+
+' renames reference sheet and data sheet
+' ComponentSheet.Name = "Component_data"
+TerminalFormat.Name = "Terminal_Report"
+
+'gathering information based on column header's values
+last = ComponentSheet.Cells(ComponentSheet.Rows.Count, 1).End(xlUp).Row
+
+Tcol = Application.Match("STRIP-ID", ComponentSheet.Rows(1), 0)
+tnumcol = Application.Match("TERM", ComponentSheet.Rows(1), 0)
+locationcol = Application.Match("LOC", ComponentSheet.Rows(1), 0)
+
+TerminalFormat.Rows(1).Font.Bold = True
+TerminalFormat.Cells(1, 1).Value = "Terminal Strip"
+TerminalFormat.Cells(1, 2).Value = "Pin"
+TerminalFormat.Cells(1, 3).Value = "Location"
+
+Count = 2
+
+
+'loops through the data sheet and performs function if terminal strip is not empty and the terminal number  not D/E/P#
+For i = 2 To last
+ Tnum = ComponentSheet.Cells(i, tnumcol).Value
+ If Not IsEmpty(ComponentSheet.Cells(i, Tcol)) And (Tnum <> "D") And (Tnum <> "E") And (Tnum <> "P#") Then
+    
+    TerminalFormat.Cells(Count, 1).Value = ComponentSheet.Cells(i, Tcol)
+    TerminalFormat.Cells(Count, 2).Value = ComponentSheet.Cells(i, tnumcol)
+    TerminalFormat.Cells(Count, 3).Value = ComponentSheet.Cells(i, locationcol)
+    
+    Count = Count + 1
+    
+    
+End If
+Next i
+
+End Sub
+
+
+
+Sub Device_Wiring_Report()
+
+    Dim wb As Workbook
+    Set wb = ActiveWorkbook
+
+    Dim outWS As Worksheet
+    Set outWS = wb.Worksheets.Add
+
+    Dim compWS As Worksheet, wireWS As Worksheet
+    Set compWS = wb.Worksheets("Component_data")
+    Set wireWS = wb.Worksheets("Wire_data")
+
+    Dim dict As Object
+    Set dict = CreateObject("Scripting.Dictionary")
+
+    Dim outRow As Long
+    outRow = 1
+
+    Dim i As Long, j As Long
+    Dim com_last As Long, wire_last As Long
+
+    com_last = compWS.Cells(compWS.Rows.Count, 1).End(xlUp).Row
+    wire_last = wireWS.Cells(wireWS.Rows.Count, 1).End(xlUp).Row
+
+    ' --- COLUMN MATCHES ---
+    Dim Device_c, location_c, install_c, manufact_c, manufact_pin_c
+    Dim Device_w, spin_w, Dest_w, wirenum_w, dpin_w, wiretype_w, location_w
+
+    Device_c = Application.Match("Tag", compWS.Rows(1), 0)
+    location_c = Application.Match("Location", compWS.Rows(1), 0)
+    install_c = Application.Match("Installation", compWS.Rows(1), 0)
+    manufact_c = Application.Match("Manufacturer", compWS.Rows(1), 0)
+    manufact_pin_c = Application.Match("Catalog Number", compWS.Rows(1), 0)
+
+    Device_w = Application.Match("From Component", wireWS.Rows(1), 0)
+    Dest_w = Application.Match("To Component", wireWS.Rows(1), 0)
+    spin_w = Application.Match("From Pin", wireWS.Rows(1), 0)
+    wirenum_w = Application.Match("Wire Number", wireWS.Rows(1), 0)
+    dpin_w = Application.Match("To Pin", wireWS.Rows(1), 0)
+    wiretype_w = Application.Match("Wire Type", wireWS.Rows(1), 0)
+    location_w = Application.Match("From Location", wireWS.Rows(1), 0)
+
+    ' --- MAIN LOOP ---
+    For i = 2 To com_last
+
+        Dim currentDevice As String
+        currentDevice = compWS.Cells(i, Device_c).Value
+
+        If Trim(currentDevice) = "" Then GoTo NextDevice
+        If dict.Exists(currentDevice) Then GoTo NextDevice
+        dict.Add currentDevice, True
+
+        Dim hasWire As Boolean
+        hasWire = False
+
+        For j = 2 To wire_last
+            If wireWS.Cells(j, Device_w).Value = currentDevice _
+               Or wireWS.Cells(j, Dest_w).Value = currentDevice Then
+                hasWire = True
+                Exit For
+            End If
+        Next j
+
+        If hasWire = False Then GoTo NextDevice
+
+        ' DEVICE HEADER
+        outWS.Cells(outRow, 1).Resize(1, 5).Value = _
+            Array("Device", "Location", "Installation", "Manufacturer", "Catalog Number")
+        outWS.Rows(outRow).Font.Bold = True
+        outRow = outRow + 1
+
+        ' DEVICE DATA
+        outWS.Cells(outRow, 1).Value = currentDevice
+        outWS.Cells(outRow, 2).Value = compWS.Cells(i, location_c).Value
+        outWS.Cells(outRow, 3).Value = compWS.Cells(i, install_c).Value
+        outWS.Cells(outRow, 4).Value = compWS.Cells(i, manufact_c).Value
+        outWS.Cells(outRow, 5).Value = compWS.Cells(i, manufact_pin_c).Value
+        outRow = outRow + 1
+
+        ' WIRE HEADER
+        outWS.Cells(outRow, 1).Resize(1, 7).Value = _
+            Array("Source Device", "Source Pin", "Wire Number", _
+                  "Destination Device", "Destination Pin", "Wire Type", "Location")
+        outWS.Rows(outRow).Font.Bold = True
+        outRow = outRow + 1
+
+        ' WIRE DATA
+        For j = 2 To wire_last
+
+            Dim src As String, dest As String
+            src = wireWS.Cells(j, Device_w).Value
+            dest = wireWS.Cells(j, Dest_w).Value
+
+            If src = currentDevice Or dest = currentDevice Then
+
+                Dim srcPin As String, destPin As String
+
+                If src = currentDevice Then
+                    srcPin = wireWS.Cells(j, spin_w).Value
+                    destPin = wireWS.Cells(j, dpin_w).Value
+                Else
+                    srcPin = wireWS.Cells(j, dpin_w).Value
+                    destPin = wireWS.Cells(j, spin_w).Value
+                    dest = wireWS.Cells(j, Device_w).Value
+                End If
+
+                If srcPin = "" Then srcPin = "-"
+                If destPin = "" Then destPin = "-"
+
+                destPin = Trim(destPin)
+                destPin = Replace(destPin, ":I", "")
+                destPin = Replace(destPin, ":E", "")
+                destPin = Replace(destPin, ": I", "")
+                destPin = Replace(destPin, ": E", "")
+
+                outWS.Cells(outRow, 1).Value = currentDevice
+                outWS.Cells(outRow, 2).Value = srcPin
+                outWS.Cells(outRow, 3).Value = wireWS.Cells(j, wirenum_w).Value
+                outWS.Cells(outRow, 4).Value = dest
+                outWS.Cells(outRow, 5).Value = destPin
+                outWS.Cells(outRow, 6).Value = wireWS.Cells(j, wiretype_w).Value
+                outWS.Cells(outRow, 7).Value = wireWS.Cells(j, location_w).Value
+
+                outRow = outRow + 1
+            End If
+
+        Next j
+
+        outRow = outRow + 1
+
+NextDevice:
+    Next i
+
+    outWS.Name = "Device_Wiring_Format"
+
+End Sub
+'function to run all reports: just calling all the other functions within this one
+Sub All_Reports()
+WireFrom2
+Component_Format
+Fuse_Relays_Format
+Terminal_pins
+'Device_Wiring_Report
+
+End Sub
+
+
+
+
+Sub ImportFiles_AsSheets()
+
+    Dim fd As FileDialog
+    Dim i As Long
+    Dim filePath As String
+    Dim wbSource As Workbook
+    Dim ws As Worksheet
+
+    'Open file picker
+    Set fd = Application.FileDialog(msoFileDialogFilePicker)
+
+    With fd
+        .Title = "Select files to import as sheets"
+        .AllowMultiSelect = True
+
+        If .Show <> -1 Then Exit Sub
+
+        Application.ScreenUpdating = False
+
+        'Loop through selected files
+        For i = 1 To .SelectedItems.Count
+
+            filePath = .SelectedItems(i)
+
+            'Open selected file
+            Set wbSource = Workbooks.Open(filePath)
+
+            'Check each worksheet
+            For Each ws In wbSource.Worksheets
+
+                'Only copy sheets that contain data
+                If Application.WorksheetFunction.CountA(ws.Cells) > 0 Then
+
+                    ws.Copy After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count)
+
+                End If
+
+            Next ws
+
+            'Close source workbook
+            wbSource.Close SaveChanges:=False
+
+        Next i
+
+    End With
+
+    Application.ScreenUpdating = True
+
+    MsgBox "Import complete.", vbInformation
+
+End Sub
+
+Sub Export()
+
+    Dim fd As FileDialog
+    Dim folderPath As String
+    Dim ws As Worksheet
+    
+    'Pick folder
+    Set fd = Application.FileDialog(msoFileDialogFolderPicker)
+    
+    If fd.Show <> -1 Then Exit Sub
+    
+    folderPath = fd.SelectedItems(1)
+    
+    'Loop through sheets created in your macro
+    For Each ws In ThisWorkbook.Worksheets
+        
+        'Only export sheets that contain "format"
+        If InStr(1, ws.Name, "Report", vbTextCompare) > 0 Then
+            
+            'Create new workbook with just that sheet
+            ws.Copy
+            
+            'Save it into selected folder
+            ActiveWorkbook.SaveAs folderPath & "\" & ws.Name & ".xlsx"
+            
+            'Close exported file
+            ActiveWorkbook.Close SaveChanges:=False
+            
+        End If
+        
+    Next ws
+
+End Sub
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
